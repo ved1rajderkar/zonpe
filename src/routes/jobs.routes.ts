@@ -234,7 +234,7 @@ jobRoutes.post("/", zValidator("json", createJobSchema), async (c) => {
   let barcode = "";
   try {
     qrCode = await generateJobTrackingQR(trackingToken, jobNumber);
-    barcode = await generateJobBarcode(jobNumber);
+    barcode = jobNumber;
   } catch (err) {
     console.error("Failed to generate QR/barcode:", err);
   }
