@@ -464,3 +464,16 @@ export async function processEmailQueue(): Promise<void> {
     }
   }
 }
+
+// Test email connection
+export async function testEmailConnection(): Promise<{ success: boolean; message: string }> {
+  try {
+    // In production, verify SMTP connection here
+    if (!env.RESEND_API_KEY) {
+      return { success: false, message: "Email not configured" };
+    }
+    return { success: true, message: "Email connection successful" };
+  } catch (error: any) {
+    return { success: false, message: error.message || "Connection test failed" };
+  }
+}

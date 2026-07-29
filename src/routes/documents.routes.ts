@@ -36,6 +36,49 @@ documentRoutes.get("/", zValidator("query", z.object({
   return c.json({ documents: results });
 });
 
+// GET /categories - Get document categories
+documentRoutes.get("/categories", async (c) => {
+  return c.json({
+    categories: [
+      "contract", "drawing", "certificate", "invoice",
+      "report", "photo", "specification", "other"
+    ],
+  });
+});
+
+// GET /:id - Get single document
+documentRoutes.get("/:id", async (c) => {
+  const { id } = c.req.param();
+  const [doc] = await db.select().from(documents).where(eq(documents.id, id)).limit(1);
+  if (!doc) {
+    return c.json({ error: "Document not found" }, 404);
+  }
+  return c.json({ document: doc });
+});
+
+// PUT /:id - Update document
+documentRoutes.put("/:id", zValidator("json", z.object({
+  fileName: z.string().optional(),
+  category: z.string().optional(),
+  description: z.string().optional(),
+})), async (c) => {
+  const { id } = c.req.param();
+  const data = c.req.valid("json");
+
+  const [existing] = await db.select().from(documents).where(eq(documents.id, id)).limit(1);
+  if (!existing) {
+    return c.json({ error: "Document not found" }, 404);
+  }
+
+  const [updated] = await db
+    .update(documents)
+    .set({ ...data, updatedAt: new Date() } as any)
+    .where(eq(documents.id, id))
+    .returning();
+
+  return c.json({ document: updated, message: "Document updated" });
+});
+
 // POST / - Upload document
 documentRoutes.post("/", async (c) => {
   const user = c.get("user");

@@ -438,4 +438,148 @@ jobRoutes.post("/bulk-status", zValidator("json", z.object({
   return c.json({ message: `${jobIds.length} jobs updated to ${status}` });
 });
 
+// PATCH /:id/status - Update job status
+jobRoutes.patch("/:id/status", zValidator("json", z.object({
+  status: z.string(),
+  notes: z.string().optional(),
+})), async (c) => {
+  const user = c.get("user");
+  const { id } = c.req.param();
+  const { status, notes } = c.req.valid("json");
+
+  const [existing] = await db.select().from(jobs).where(eq(jobs.id, id)).limit(1);
+  if (!existing) {
+    return c.json({ error: "Job not found" }, 404);
+  }
+
+  const [updated] = await db
+    .update(jobs)
+    .set({ status: status as any, updatedAt: new Date() })
+    .where(eq(jobs.id, id))
+    .returning();
+
+  await db.insert(jobTimeline).values({
+    jobId: id,
+    status: status as any,
+    description: notes || `Status changed from ${existing.status} to ${status}`,
+    userId: user.id,
+  });
+
+  return c.json({ job: updated, message: "Status updated" });
+});
+
+// GET /:id/timeline - Get job timeline
+jobRoutes.get("/:id/timeline", async (c) => {
+  const { id } = c.req.param();
+
+  const timeline = await db
+    .select({
+      id: jobTimeline.id,
+      status: jobTimeline.status,
+      description: jobTimeline.description,
+      createdAt: jobTimeline.createdAt,
+      userName: users.name,
+    })
+    .from(jobTimeline)
+    .leftJoin(users, eq(jobTimeline.userId, users.id))
+    .where(eq(jobTimeline.jobId, id))
+    .orderBy(desc(jobTimeline.createdAt));
+
+  return c.json({ timeline });
+});
+
+// POST /:id/timeline - Add timeline entry
+jobRoutes.post("/:id/timeline", zValidator("json", z.object({
+  action: z.string(),
+  description: z.string().optional(),
+})), async (c) => {
+  const user = c.get("user");
+  const { id } = c.req.param();
+  const { action, description } = c.req.valid("json");
+
+  const [entry] = await db
+    .insert(jobTimeline)
+    .values({
+      jobId: id,
+      status: action as any,
+      description: description || action,
+      userId: user.id,
+    })
+    .returning();
+
+  return c.json({ entry, message: "Timeline entry added" }, 201);
+});
+
+// GET /:id/files - Get job files
+jobRoutes.get("/:id/files", async (c) => {
+  const { id } = c.req.param();
+  const files = await db.select().from(jobFiles).where(eq(jobFiles.jobId, id));
+  return c.json({ files });
+});
+
+// DELETE /:id/files/:fileId - Delete job file
+jobRoutes.delete("/:id/files/:fileId", async (c) => {
+  const { fileId } = c.req.param();
+  await db.delete(jobFiles).where(eq(jobFiles.id, fileId));
+  return c.json({ message: "File deleted" });
+});
+
+// POST /:id/duplicate - Duplicate job
+jobRoutes.post("/:id/duplicate", async (c) => {
+  const user = c.get("user");
+  const { id } = c.req.param();
+
+  const [existing] = await db.select().from(jobs).where(eq(jobs.id, id)).limit(1);
+  if (!existing) {
+    return c.json({ error: "Job not found" }, 404);
+  }
+
+  const year = new Date().getFullYear();
+  const [lastJob] = await db
+    .select({ jobNumber: jobs.jobNumber })
+    .from(jobs)
+    .orderBy(desc(jobs.createdAt))
+    .limit(1);
+
+  let nextNum = 1;
+  if (lastJob) {
+    const match = lastJob.jobNumber.match(/(\d+)$/);
+    if (match) nextNum = parseInt(match[1]) + 1;
+  }
+  const jobNumber = `JOB-${year}-${String(nextNum).padStart(5, "0")}`;
+
+  const trackingToken = nanoid(32);
+
+  const [newJob] = await db
+    .insert(jobs)
+    .values({
+      jobNumber,
+      customerId: existing.customerId,
+      poNumber: existing.poNumber,
+      drawingNumber: existing.drawingNumber,
+      material: existing.material,
+      grade: existing.grade,
+      quantity: existing.quantity,
+      weight: existing.weight,
+      unit: existing.unit,
+      priority: existing.priority,
+      status: "received",
+      dueDate: existing.dueDate,
+      estimatedCompletion: existing.estimatedCompletion,
+      remarks: existing.remarks,
+      trackingToken,
+      createdBy: user.id,
+    })
+    .returning();
+
+  await db.insert(jobTimeline).values({
+    jobId: newJob.id,
+    status: "received",
+    description: `Job duplicated from ${existing.jobNumber}`,
+    userId: user.id,
+  });
+
+  return c.json({ job: newJob, message: "Job duplicated" }, 201);
+});
+
 export { jobRoutes };

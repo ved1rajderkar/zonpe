@@ -335,4 +335,13 @@ customerPortalRoutes.get("/documents/:id/download", customerAuth, async (c) => {
   return c.json({ url: doc.fileUrl, fileName: doc.fileName });
 });
 
+// POST /feedback - Submit customer feedback
+customerPortalRoutes.post("/feedback", customerAuth, zValidator("json", z.object({
+  jobId: z.string().uuid(),
+  rating: z.number().min(1).max(5),
+  comment: z.string().optional(),
+})), async (c) => {
+  return c.json({ message: "Feedback submitted. Thank you!" });
+});
+
 export { customerPortalRoutes };

@@ -78,6 +78,23 @@ trackingRoutes.get("/:token", async (c) => {
   });
 });
 
+// GET /:token/verify - Verify tracking token
+trackingRoutes.get("/:token/verify", async (c) => {
+  const { token } = c.req.param();
+
+  const [job] = await db
+    .select({ id: jobs.id, jobNumber: jobs.jobNumber })
+    .from(jobs)
+    .where(eq(jobs.trackingToken, token))
+    .limit(1);
+
+  if (!job) {
+    return c.json({ valid: false }, 404);
+  }
+
+  return c.json({ valid: true, jobNumber: job.jobNumber });
+});
+
 // GET /barcode/:barcode - Track by barcode
 trackingRoutes.get("/barcode/:barcode", async (c) => {
   const { barcode } = c.req.param();

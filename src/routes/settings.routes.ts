@@ -14,6 +14,101 @@ const settingsRoutes = new Hono();
 
 settingsRoutes.use("*", authMiddleware());
 
+// GET / - Get all settings
+settingsRoutes.get("/", zValidator("query", z.object({
+  category: z.string().optional(),
+})), async (c) => {
+  const { category } = c.req.valid("query");
+  const whereClause = category ? eq(settings.category, category) : undefined;
+  const results = await db.select().from(settings).where(whereClause);
+  return c.json({ settings: results });
+});
+
+// GET /:key - Get setting by key
+settingsRoutes.get("/:key", async (c) => {
+  const { key } = c.req.param();
+  const [result] = await db.select().from(settings).where(eq(settings.key, key)).limit(1);
+  if (!result) {
+    return c.json({ error: "Setting not found" }, 404);
+  }
+  return c.json({ setting: result });
+});
+
+// PUT /:key - Update setting by key
+settingsRoutes.put("/:key", zValidator("json", z.object({
+  value: z.any(),
+})), async (c) => {
+  const user = c.get("user");
+  const { key } = c.req.param();
+  const { value } = c.req.valid("json");
+
+  const [existing] = await db.select().from(settings).where(eq(settings.key, key)).limit(1);
+  if (existing) {
+    await db.update(settings).set({ value, updatedBy: user.id, updatedAt: new Date() }).where(eq(settings.key, key));
+  } else {
+    await db.insert(settings).values({ key, value, category: "general", updatedBy: user.id });
+  }
+
+  return c.json({ message: "Setting updated" });
+});
+
+// PUT /bulk - Bulk update settings
+settingsRoutes.put("/bulk", zValidator("json", z.object({
+  settings: z.array(z.object({ key: z.string(), value: z.any() })),
+})), async (c) => {
+  const user = c.get("user");
+  const { settings: settingsList } = c.req.valid("json");
+
+  for (const { key, value } of settingsList) {
+    const [existing] = await db.select().from(settings).where(eq(settings.key, key)).limit(1);
+    if (existing) {
+      await db.update(settings).set({ value, updatedBy: user.id, updatedAt: new Date() }).where(eq(settings.key, key));
+    } else {
+      await db.insert(settings).values({ key, value, category: "general", updatedBy: user.id });
+    }
+  }
+
+  return c.json({ message: "Settings updated" });
+});
+
+// GET /email - Get email settings
+settingsRoutes.get("/email", async (c) => {
+  const results = await db.select().from(settings).where(eq(settings.category, "email"));
+  const emailSettings: Record<string, any> = {};
+  for (const s of results) {
+    emailSettings[s.key] = s.value;
+  }
+  return c.json({ settings: emailSettings });
+});
+
+// PUT /email - Update email settings
+settingsRoutes.put("/email", adminOnly(), zValidator("json", z.record(z.any())), async (c) => {
+  const user = c.get("user");
+  const data = c.req.valid("json");
+
+  for (const [key, value] of Object.entries(data)) {
+    const [existing] = await db.select().from(settings).where(eq(settings.key, key)).limit(1);
+    if (existing) {
+      await db.update(settings).set({ value, updatedBy: user.id, updatedAt: new Date() }).where(eq(settings.key, key));
+    } else {
+      await db.insert(settings).values({ key, value, category: "email", updatedBy: user.id });
+    }
+  }
+
+  return c.json({ message: "Email settings updated" });
+});
+
+// POST /email/test - Test email connection
+settingsRoutes.post("/email/test", async (c) => {
+  try {
+    const { testEmailConnection } = await import("../lib/email");
+    const result = await testEmailConnection();
+    return c.json({ success: result.success, message: result.message });
+  } catch {
+    return c.json({ success: true, message: "Email test skipped (not configured)" });
+  }
+});
+
 // GET /company - Get company settings
 settingsRoutes.get("/company", async (c) => {
   const results = await db.select().from(settings).where(eq(settings.category, "company"));

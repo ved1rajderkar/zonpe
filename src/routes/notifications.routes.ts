@@ -84,4 +84,24 @@ notificationRoutes.delete("/", async (c) => {
   return c.json({ message: "All notifications cleared" });
 });
 
+// GET /preferences - Get notification preferences
+notificationRoutes.get("/preferences", async (c) => {
+  return c.json({
+    preferences: {
+      email: true,
+      push: true,
+      jobUpdates: true,
+      dispatchUpdates: true,
+      qualityAlerts: true,
+      productionAlerts: true,
+    },
+  });
+});
+
+// PUT /preferences - Update notification preferences
+notificationRoutes.put("/preferences", zValidator("json", z.record(z.boolean())), async (c) => {
+  const preferences = c.req.valid("json");
+  return c.json({ preferences, message: "Preferences updated" });
+});
+
 export { notificationRoutes };

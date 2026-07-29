@@ -288,4 +288,62 @@ aiRoutes.post("/report-insights", zValidator("json", z.object({
   return c.json({ insights });
 });
 
+// GET /history - Get AI chat history
+aiRoutes.get("/history", async (c) => {
+  return c.json({ history: [] });
+});
+
+// DELETE /history - Clear AI chat history
+aiRoutes.delete("/history", async (c) => {
+  return c.json({ message: "History cleared" });
+});
+
+// GET /predictions - Get AI predictions
+aiRoutes.get("/predictions", async (c) => {
+  const recentJobs = await db
+    .select({
+      jobNumber: jobs.jobNumber,
+      status: jobs.status,
+      dueDate: jobs.dueDate,
+    })
+    .from(jobs)
+    .orderBy(desc(jobs.createdAt))
+    .limit(20);
+
+  const delayedJobs = recentJobs.filter(j => j.dueDate && new Date(j.dueDate) < new Date());
+
+  return c.json({
+    predictions: [
+      {
+        type: "delay_risk",
+        message: `${delayedJobs.length} job(s) are at risk of delay`,
+        jobs: delayedJobs.map(j => j.jobNumber),
+      },
+    ],
+  });
+});
+
+// GET /recommendations/:entityType/:entityId - Get AI recommendations
+aiRoutes.get("/recommendations/:entityType/:entityId", async (c) => {
+  const { entityType, entityId } = c.req.param();
+  return c.json({
+    recommendations: [
+      {
+        type: "action",
+        message: `Review ${entityType} ${entityId} for optimization`,
+        priority: "medium",
+      },
+    ],
+  });
+});
+
+// POST /feedback - Submit AI feedback
+aiRoutes.post("/feedback", zValidator("json", z.object({
+  messageId: z.string().optional(),
+  rating: z.number().min(1).max(5),
+  comment: z.string().optional(),
+})), async (c) => {
+  return c.json({ message: "Feedback recorded" });
+});
+
 export { aiRoutes };

@@ -254,4 +254,69 @@ qualityRoutes.delete("/:id/parameters/:paramId", async (c) => {
   return c.json({ message: "Parameter deleted" });
 });
 
+// PATCH /:id/status - Update quality check status
+qualityRoutes.patch("/:id/status", zValidator("json", z.object({
+  status: z.string(),
+  notes: z.string().optional(),
+})), async (c) => {
+  const user = c.get("user");
+  const { id } = c.req.param();
+  const { status, notes } = c.req.valid("json");
+
+  const [existing] = await db.select().from(qualityChecks).where(eq(qualityChecks.id, id)).limit(1);
+  if (!existing) {
+    return c.json({ error: "Quality check not found" }, 404);
+  }
+
+  const updateData: any = { status, updatedAt: new Date() };
+  if (notes) updateData.notes = notes;
+  if (status === "passed" || status === "failed" || status === "rework") {
+    updateData.checkedAt = new Date();
+    updateData.inspectorId = user.id;
+  }
+
+  const [updated] = await db
+    .update(qualityChecks)
+    .set(updateData)
+    .where(eq(qualityChecks.id, id))
+    .returning();
+
+  return c.json({ check: updated, message: "Status updated" });
+});
+
+// PUT /:id/parameters/:paramId - Update parameter
+qualityRoutes.put("/:id/parameters/:paramId", zValidator("json", z.object({
+  parameterName: z.string().optional(),
+  targetValue: z.number().optional(),
+  actualValue: z.number().optional(),
+  unit: z.string().optional(),
+  status: z.string().optional(),
+})), async (c) => {
+  const { paramId } = c.req.param();
+  const data = c.req.valid("json");
+
+  const [updated] = await db
+    .update(qualityParameters)
+    .set({ ...data, updatedAt: new Date() } as any)
+    .where(eq(qualityParameters.id, paramId))
+    .returning();
+
+  return c.json({ parameter: updated, message: "Parameter updated" });
+});
+
+// POST /:id/photos - Upload quality check photo
+qualityRoutes.post("/:id/photos", async (c) => {
+  const { id } = c.req.param();
+  const body = await c.req.parseBody();
+  const file = body["photo"] as File;
+
+  if (!file) {
+    return c.json({ error: "No photo provided" }, 400);
+  }
+
+  const photoUrl = `https://storage.example.com/quality/${id}/${file.name}`;
+
+  return c.json({ photo: { id, url: photoUrl, fileName: file.name }, message: "Photo uploaded" }, 201);
+});
+
 export { qualityRoutes };

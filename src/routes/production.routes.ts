@@ -319,4 +319,75 @@ productionRoutes.get("/my-tasks", async (c) => {
   return c.json({ tasks: myAssignments });
 });
 
+// GET /stats - Production statistics
+productionRoutes.get("/stats", async (c) => {
+  const [total] = await db.select({ count: count() }).from(productionSteps);
+
+  const statusCounts = await db
+    .select({ status: productionSteps.status, count: count() })
+    .from(productionSteps)
+    .groupBy(productionSteps.status);
+
+  const inProgress = statusCounts.find(s => s.status === "in_progress")?.count || 0;
+  const completed = statusCounts.find(s => s.status === "completed")?.count || 0;
+  const pending = statusCounts.find(s => s.status === "pending")?.count || 0;
+
+  return c.json({
+    stats: {
+      total: total.count,
+      inProgress,
+      completed,
+      pending,
+      byStatus: statusCounts,
+    },
+  });
+});
+
+// PATCH /steps/:id/status - Update step status
+productionRoutes.patch("/steps/:id/status", zValidator("json", z.object({
+  status: z.string(),
+  notes: z.string().optional(),
+})), async (c) => {
+  const user = c.get("user");
+  const { id } = c.req.param();
+  const { status, notes } = c.req.valid("json");
+
+  const [step] = await db.select().from(productionSteps).where(eq(productionSteps.id, id)).limit(1);
+  if (!step) {
+    return c.json({ error: "Step not found" }, 404);
+  }
+
+  const updateData: any = { status, updatedAt: new Date() };
+  if (status === "in_progress") {
+    updateData.startedBy = user.id;
+    updateData.startedAt = new Date();
+  } else if (status === "completed") {
+    updateData.completedBy = user.id;
+    updateData.completedAt = new Date();
+  }
+  if (notes) updateData.remarks = notes;
+
+  const [updated] = await db
+    .update(productionSteps)
+    .set(updateData)
+    .where(eq(productionSteps.id, id))
+    .returning();
+
+  return c.json({ step: updated, message: "Status updated" });
+});
+
+// PATCH /steps/bulk - Bulk update steps
+productionRoutes.patch("/steps/bulk", zValidator("json", z.object({
+  ids: z.array(z.string().uuid()),
+  updates: z.record(z.any()),
+})), async (c) => {
+  const { ids, updates } = c.req.valid("json");
+
+  for (const stepId of ids) {
+    await db.update(productionSteps).set({ ...updates, updatedAt: new Date() } as any).where(eq(productionSteps.id, stepId));
+  }
+
+  return c.json({ message: `${ids.length} steps updated` });
+});
+
 export { productionRoutes };
