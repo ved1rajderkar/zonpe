@@ -1,0 +1,117 @@
+-- =============================================================================
+-- JobTrack Database Schema
+-- =============================================================================
+--
+-- NOTE: This file is for REFERENCE ONLY.
+-- The actual schema is managed by Drizzle ORM in schema.ts.
+--
+-- To apply the schema to your database, run:
+--
+--   bun run db:generate   # Generates migration SQL from Drizzle schema
+--   bun run db:migrate    # Applies pending migrations to the database
+--   bun run db:seed       # Seeds initial data (admin user, default team)
+--
+-- To open Drizzle Studio (visual database browser):
+--
+--   bun run db:studio
+--
+-- The Drizzle schema definition is located at:
+--   packages/backend/src/db/schema.ts
+--
+-- All table definitions, column types, indexes, and relations are defined
+-- in TypeScript. Drizzle generates the SQL migrations automatically.
+-- Do NOT edit migration files manually unless you know what you're doing.
+-- =============================================================================
+
+-- Below is a human-readable representation of what Drizzle generates.
+-- This serves as documentation, not as executable SQL.
+
+-- CREATE TABLE users (
+--   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+--   email VARCHAR(255) UNIQUE NOT NULL,
+--   password_hash VARCHAR(255) NOT NULL,
+--   name VARCHAR(255) NOT NULL,
+--   role VARCHAR(50) NOT NULL DEFAULT 'worker',
+--   avatar_url TEXT,
+--   is_active BOOLEAN DEFAULT true,
+--   created_at TIMESTAMPTZ DEFAULT now(),
+--   updated_at TIMESTAMPTZ DEFAULT now()
+-- );
+
+-- CREATE TABLE teams (
+--   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+--   name VARCHAR(255) UNIQUE NOT NULL,
+--   description TEXT,
+--   created_at TIMESTAMPTZ DEFAULT now(),
+--   updated_at TIMESTAMPTZ DEFAULT now()
+-- );
+
+-- CREATE TABLE team_members (
+--   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+--   team_id UUID REFERENCES teams(id) ON DELETE CASCADE,
+--   user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+--   role VARCHAR(50) NOT NULL DEFAULT 'member',
+--   created_at TIMESTAMPTZ DEFAULT now(),
+--   UNIQUE(team_id, user_id)
+-- );
+
+-- CREATE TABLE jobs (
+--   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+--   title VARCHAR(255) NOT NULL,
+--   description TEXT,
+--   status VARCHAR(50) NOT NULL DEFAULT 'pending',
+--   priority VARCHAR(50) NOT NULL DEFAULT 'medium',
+--   due_date TIMESTAMPTZ,
+--   team_id UUID REFERENCES teams(id) ON DELETE SET NULL,
+--   assigned_to UUID REFERENCES users(id) ON DELETE SET NULL,
+--   created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+--   created_at TIMESTAMPTZ DEFAULT now(),
+--   updated_at TIMESTAMPTZ DEFAULT now()
+-- );
+
+-- CREATE TABLE tasks (
+--   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+--   job_id UUID REFERENCES jobs(id) ON DELETE CASCADE,
+--   title VARCHAR(255) NOT NULL,
+--   description TEXT,
+--   status VARCHAR(50) NOT NULL DEFAULT 'pending',
+--   assigned_to UUID REFERENCES users(id) ON DELETE SET NULL,
+--   estimated_hours DECIMAL(10, 2),
+--   created_at TIMESTAMPTZ DEFAULT now(),
+--   updated_at TIMESTAMPTZ DEFAULT now()
+-- );
+
+-- CREATE TABLE time_logs (
+--   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+--   task_id UUID REFERENCES tasks(id) ON DELETE CASCADE,
+--   user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+--   hours DECIMAL(10, 2) NOT NULL,
+--   description TEXT,
+--   logged_at TIMESTAMPTZ DEFAULT now(),
+--   created_at TIMESTAMPTZ DEFAULT now()
+-- );
+
+-- CREATE TABLE attachments (
+--   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+--   filename VARCHAR(255) NOT NULL,
+--   original_name VARCHAR(255) NOT NULL,
+--   mime_type VARCHAR(100),
+--   size INTEGER,
+--   url TEXT NOT NULL,
+--   cloudinary_id VARCHAR(255),
+--   job_id UUID REFERENCES jobs(id) ON DELETE CASCADE,
+--   task_id UUID REFERENCES tasks(id) ON DELETE SET NULL,
+--   uploaded_by UUID REFERENCES users(id) ON DELETE SET NULL,
+--   created_at TIMESTAMPTZ DEFAULT now()
+-- );
+
+-- Indexes
+-- CREATE INDEX idx_jobs_status ON jobs(status);
+-- CREATE INDEX idx_jobs_assigned_to ON jobs(assigned_to);
+-- CREATE INDEX idx_jobs_team_id ON jobs(team_id);
+-- CREATE INDEX idx_tasks_job_id ON tasks(job_id);
+-- CREATE INDEX idx_tasks_assigned_to ON tasks(assigned_to);
+-- CREATE INDEX idx_time_logs_task_id ON time_logs(task_id);
+-- CREATE INDEX idx_attachments_job_id ON attachments(job_id);
+-- CREATE INDEX idx_team_members_team_id ON team_members(team_id);
+-- CREATE INDEX idx_team_members_user_id ON team_members(user_id);

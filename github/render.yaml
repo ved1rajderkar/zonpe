@@ -1,0 +1,47 @@
+services:
+  - type: web
+    name: jobtrack-backend
+    runtime: bun
+    buildCommand: bun install && bun build src/index.ts --outdir dist --target bun
+    startCommand: bun run dist/index.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3001
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        value: d066ab6c282bdf04955a0083df7548353609773e231e66e4e1dcb0e189f629f4
+      - key: JWT_REFRESH_SECRET
+        value: a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6a7b8c9d0e1f2
+      - key: JWT_EXPIRES_IN
+        value: 15m
+      - key: JWT_REFRESH_EXPIRES_IN
+        value: 7d
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_FROM_EMAIL
+        value: rajderkarved19@gmail.com
+      - key: RESEND_FROM_NAME
+        value: Zonap Tracker
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: OPENROUTER_MODEL
+        value: meta-llama/llama-3.1-8b-instruct:free
+      - key: CORS_ORIGIN
+        value: https://zenkaidrive.vercel.app
+      - key: FRONTEND_URL
+        value: https://zenkaidrive.vercel.app
+      - key: DEFAULT_ADMIN_EMAIL
+        value: admin@zonap.com
+      - key: DEFAULT_ADMIN_PASSWORD
+        value: Admin@123
+    healthCheckPath: /health
+    plan: free
