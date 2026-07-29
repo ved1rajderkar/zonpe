@@ -110,7 +110,7 @@ jobRoutes.get("/stats", async (c) => {
     .select({ count: count() })
     .from(jobs)
     .where(and(
-      sql`${jobs.dueDate} < ${new Date()}`,
+      sql`${jobs.dueDate} < ${new Date().toISOString()}`,
       sql`${jobs.status} NOT IN ('completed', 'cancelled', 'delivered')`
     ));
 
