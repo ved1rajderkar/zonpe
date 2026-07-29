@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 import { prettyJSON } from "hono/pretty-json";
-import { secureHeaders } from "hono/secure-headers";
+
 import { env } from "./lib/env";
 import { pinoLogger } from "./middleware/pino-logger";
 import { errorHandler } from "./middleware/error-handler";
@@ -50,7 +50,10 @@ async function ensureAdminExists() {
 const app = new Hono();
 
 app.use("*", cors({
-  origin: env.CORS_ORIGIN || "*",
+  origin: (origin) => {
+    if (!origin) return "*";
+    return origin;
+  },
   allowMethods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
   allowHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
   credentials: true,
@@ -59,7 +62,6 @@ app.use("*", cors({
 
 app.use("*", logger());
 app.use("*", prettyJSON());
-app.use("*", secureHeaders());
 app.use("*", pinoLogger);
 app.onError(errorHandler);
 
