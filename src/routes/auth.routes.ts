@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
+import { z } from "zod";
 import {
   registerSchema, loginSchema, updateProfileSchema, changePasswordSchema, forgotPasswordSchema
 } from "../lib/validation";
