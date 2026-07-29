@@ -6,8 +6,26 @@ import { db } from "../db";
 import { jobs, customers } from "../db/schema";
 import { eq } from "drizzle-orm";
 import QRCode from "qrcode";
-import JsBarcode from "jsbarcode";
-import { createCanvas } from "canvas";
+
+function generateBarcodeBars(value: string): string {
+  const chars = value.split("");
+  let x = 0;
+  let bars = "";
+  for (const ch of chars) {
+    const code = ch.charCodeAt(0);
+    const pattern = ((code * 7 + 3) % 15) + 1;
+    for (let i = 0; i < 4; i++) {
+      const barWidth = ((pattern >> i) & 1) ? 2 : 1;
+      const isBar = i % 2 === 0;
+      if (isBar) {
+        bars += `<rect x="${x}" y="0" width="${barWidth}" height="50" fill="black"/>`;
+      }
+      x += barWidth;
+    }
+    x += 1;
+  }
+  return bars;
+}
 
 const barcodeRoutes = new Hono();
 
@@ -24,20 +42,12 @@ barcodeRoutes.get("/barcode/:jobId", async (c) => {
 
   const barcodeValue = job.barcode || job.jobNumber;
 
-  // Generate barcode as SVG
-  const canvas = createCanvas(300, 150);
-  JsBarcode(canvas, barcodeValue, {
-    format: "CODE128",
-    width: 2,
-    height: 50,
-    displayValue: true,
-    fontSize: 14,
-    margin: 10,
-  });
-
-  const svgString = `<svg xmlns="http://www.w3.org/2000/svg" width="300" height="150">
-    <rect width="300" height="150" fill="white"/>
-    <text x="150" y="20" text-anchor="middle" font-size="12" font-family="Arial">${job.jobNumber}</text>
+  const svgString = `<svg xmlns="http://www.w3.org/2000/svg" width="300" height="100" viewBox="0 0 300 100">
+    <rect width="300" height="100" fill="white"/>
+    <text x="150" y="20" text-anchor="middle" font-size="14" font-family="monospace" font-weight="bold">${barcodeValue}</text>
+    <g transform="translate(20, 30)">
+      ${generateBarcodeBars(barcodeValue)}
+    </g>
   </svg>`;
 
   return c.header("Content-Type", "image/svg+xml").body(svgString);
