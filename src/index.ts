@@ -50,10 +50,7 @@ async function ensureAdminExists() {
 const app = new Hono();
 
 app.use("*", cors({
-  origin: (origin) => {
-    if (!origin) return "*";
-    return origin;
-  },
+  origin: env.CORS_ORIGIN || "*",
   allowMethods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
   allowHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
   credentials: true,

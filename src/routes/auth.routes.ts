@@ -112,8 +112,15 @@ auth.post("/logout", authMiddleware(), async (c) => {
 
 // POST /refresh-token
 auth.post("/refresh-token", async (c) => {
-  const cookieHeader = c.req.header("Cookie");
-  const refreshToken = cookieHeader?.match(/refresh_token=([^;]+)/)?.[1];
+  let refreshToken: string | undefined;
+  try {
+    const body = await c.req.json();
+    refreshToken = body?.refreshToken;
+  } catch {}
+  if (!refreshToken) {
+    const cookieHeader = c.req.header("Cookie");
+    refreshToken = cookieHeader?.match(/refresh_token=([^;]+)/)?.[1];
+  }
 
   if (!refreshToken) {
     return c.json({ error: "Refresh token required" }, 401);
