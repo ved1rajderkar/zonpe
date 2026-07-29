@@ -51,9 +51,8 @@ const app = new Hono();
 
 app.use("*", cors({
   origin: (origin) => {
-    const allowed = env.CORS_ORIGIN || "*";
-    if (allowed === "*") return origin || "*";
-    return allowed;
+    if (!origin) return "*";
+    return origin;
   },
   allowMethods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
   allowHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
