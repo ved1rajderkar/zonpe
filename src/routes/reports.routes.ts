@@ -4,7 +4,7 @@ import { z } from "zod";
 import { reportFilterSchema } from "../lib/validation";
 import { authMiddleware } from "../middleware/auth";
 import { db } from "../db";
-import { jobs, dispatches, customers, qualityChecks, productionSteps } from "../db/schema";
+import { jobs, dispatches, customers, qualityChecks, productionSteps, jobFiles } from "../db/schema";
 import { eq, and, desc, sql, count, gte, lte } from "drizzle-orm";
 import { generateJobReportExcel, generateCustomerReportExcel, generateDispatchReportExcel, generateDelayReportExcel, generateProductionReportExcel, generateQualityReportExcel } from "../lib/excel";
 import { generateJobCardPDF } from "../lib/pdf";
@@ -322,6 +322,53 @@ reportRoutes.get("/revenue", zValidator("query", reportFilterSchema), async (c) 
   return c.json({ report: results[0], total: results.length });
 });
 
+// GET /inward - Inward Register report
+reportRoutes.get("/inward", zValidator("query", reportFilterSchema), async (c) => {
+  const { startDate, endDate, format } = c.req.valid("query");
+
+  const conditions = [];
+  if (startDate) conditions.push(gte(jobs.createdAt, new Date(startDate)));
+  if (endDate) conditions.push(lte(jobs.createdAt, new Date(endDate)));
+
+  const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+  const results = await db
+    .select({
+      id: jobs.id,
+      jobNumber: jobs.jobNumber,
+      customerName: customers.companyName,
+      poNumber: jobs.poNumber,
+      material: jobs.material,
+      grade: jobs.grade,
+      quantity: jobs.quantity,
+      unit: jobs.unit,
+      priority: jobs.priority,
+      status: jobs.status,
+      dueDate: jobs.dueDate,
+      createdAt: jobs.createdAt,
+    })
+    .from(jobs)
+    .leftJoin(customers, eq(jobs.customerId, customers.id))
+    .where(whereClause)
+    .orderBy(desc(jobs.createdAt));
+
+  const summary = {
+    totalInward: results.length,
+    pendingInward: results.filter((j) => j.status === "received").length,
+    inProduction: results.filter((j) => j.status === "in_production").length,
+    completed: results.filter((j) => j.status === "completed").length,
+  };
+
+  if (format === "excel") {
+    const buffer = generateJobReportExcel(results);
+    c.header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    c.header("Content-Disposition", `attachment; filename=inward-register-${Date.now()}.xlsx`);
+    return c.body(buffer);
+  }
+
+  return c.json({ report: results, summary, total: results.length });
+});
+
 // GET /:type/export - Export report as Excel
 reportRoutes.get("/:type/export", zValidator("query", reportFilterSchema), async (c) => {
   const { type } = c.req.param();
@@ -343,6 +390,12 @@ reportRoutes.get("/:type/export", zValidator("query", reportFilterSchema), async
       filename = "customer-report.xlsx";
       break;
     }
+    case "inward": {
+      const results = await db.select().from(jobs).orderBy(desc(jobs.createdAt));
+      buffer = generateJobReportExcel(results);
+      filename = "inward-register.xlsx";
+      break;
+    }
     default:
       return c.json({ error: "Invalid report type" }, 400);
   }
@@ -359,6 +412,7 @@ reportRoutes.get("/recent", async (c) => {
       { type: "jobs", label: "Job Report", lastGenerated: new Date().toISOString() },
       { type: "production", label: "Production Report", lastGenerated: new Date().toISOString() },
       { type: "quality", label: "Quality Report", lastGenerated: new Date().toISOString() },
+      { type: "inward", label: "Inward Register", lastGenerated: new Date().toISOString() },
     ],
   });
 });

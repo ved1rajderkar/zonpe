@@ -12,6 +12,18 @@ import { nanoid } from "nanoid";
 import { generateJobTrackingQR } from "../lib/qrcode";
 import { generateJobBarcode } from "../lib/barcode";
 
+const frontendToDbStatus: Record<string, string> = {
+  "draft": "received",
+  "confirmed": "po_verified",
+  "in-progress": "in_production",
+  "quality-check": "quality_check",
+  "ready-for-dispatch": "ready_for_dispatch",
+};
+
+function mapStatus(status: string): string {
+  return frontendToDbStatus[status] || status.replace(/-/g, "_");
+}
+
 const jobRoutes = new Hono();
 
 jobRoutes.use("*", authMiddleware());
@@ -27,7 +39,10 @@ jobRoutes.get("/", zValidator("query", paginationSchema.extend({
   const offset = (page - 1) * limit;
 
   const conditions = [];
-  if (status) conditions.push(eq(jobs.status, status as any));
+  if (status) {
+    const dbStatus = mapStatus(status);
+    conditions.push(eq(jobs.status, dbStatus as any));
+  }
   if (priority) conditions.push(eq(jobs.priority, priority as any));
   if (customerId) conditions.push(eq(jobs.customerId, customerId));
   if (search) {
@@ -104,7 +119,7 @@ jobRoutes.get("/stats", async (c) => {
   const [todayCount] = await db
     .select({ count: count() })
     .from(jobs)
-    .where(sql`${jobs.createdAt} >= ${today}`);
+    .where(sql`${jobs.createdAt} >= ${today.toISOString()}`);
 
   const [delayedCount] = await db
     .select({ count: count() })
