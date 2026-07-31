@@ -24,6 +24,7 @@ import { aiRoutes } from "./routes/ai.routes";
 import { dashboardRoutes } from "./routes/dashboard.routes";
 import { uploadRoutes } from "./routes/upload.routes";
 import { barcodeRoutes } from "./routes/barcode.routes";
+import { driverRoutes } from "./routes/drivers.routes";
 import { db } from "./db";
 import { users } from "./db/schema";
 import { eq } from "drizzle-orm";
@@ -87,6 +88,7 @@ app.route("/api/ai", aiRoutes);
 app.route("/api/dashboard", dashboardRoutes);
 app.route("/api/upload", uploadRoutes);
 app.route("/api/barcode", barcodeRoutes);
+app.route("/api/drivers", driverRoutes);
 
 app.notFound((c) => {
   return c.json({ error: "Not Found", message: `Route ${c.req.method} ${c.req.path} not found` }, 404);

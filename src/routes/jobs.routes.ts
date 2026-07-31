@@ -4,7 +4,7 @@ import { z } from "zod";
 import { createJobSchema, updateJobSchema, jobNoteSchema, paginationSchema } from "../lib/validation";
 import { authMiddleware } from "../middleware/auth";
 import { db } from "../db";
-import { jobs, jobFiles, jobTimeline, jobNotes, customers, users, productionSteps } from "../db/schema";
+import { jobs, jobFiles, jobTimeline, jobNotes, customers, users, productionSteps, drivers } from "../db/schema";
 import { eq, and, desc, sql, count, ilike, or } from "drizzle-orm";
 import { createAuditLog, AuditActions } from "../middleware/audit";
 import { emitEvent } from "../lib/automation";
@@ -210,6 +210,19 @@ jobRoutes.get("/:id", async (c) => {
     .where(eq(productionSteps.jobId, id))
     .orderBy(productionSteps.stepOrder);
 
+  // Get assigned driver info
+  const [assignedDriver] = await db
+    .select({
+      id: drivers.id,
+      fullName: drivers.fullName,
+      vehicleNumber: drivers.vehicleNumber,
+      isOnline: drivers.isOnline,
+      driverId: drivers.driverId,
+    })
+    .from(drivers)
+    .where(eq(drivers.assignedJobId, id))
+    .limit(1);
+
   return c.json({
     job: {
       ...job,
@@ -217,6 +230,7 @@ jobRoutes.get("/:id", async (c) => {
       timeline,
       notes,
       productionSteps: steps,
+      assignedDriver: assignedDriver || null,
     },
   });
 });

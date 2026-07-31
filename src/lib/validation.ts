@@ -281,3 +281,27 @@ export const paginationSchema = z.object({
 export const idParamSchema = z.object({
   id: z.string().uuid("Invalid ID"),
 });
+
+// Driver schemas
+export const createDriverSchema = z.object({
+  fullName: z.string().min(2, "Name must be at least 2 characters").max(255),
+  phoneNumber: z.string().min(10, "Phone number must be at least 10 digits").max(20),
+  driverId: z.string().min(3, "Driver ID must be at least 3 characters").max(50),
+  vehicleNumber: z.string().min(3, "Vehicle number must be at least 3 characters").max(50),
+  pin: z.string().min(4, "PIN must be at least 4 digits").max(8),
+});
+
+export const updateDriverSchema = z.object({
+  fullName: z.string().min(2).max(255).optional(),
+  phoneNumber: z.string().min(10).max(20).optional(),
+  driverId: z.string().min(3).max(50).optional(),
+  vehicleNumber: z.string().min(3).max(50).optional(),
+  pin: z.string().min(4).max(8).optional(),
+  isActive: z.boolean().optional(),
+  assignedJobId: z.string().uuid().nullable().optional(),
+});
+
+export const driverLoginSchema = z.object({
+  identifier: z.string().min(1, "Driver ID or phone number is required"),
+  pin: z.string().min(1, "PIN is required"),
+});

@@ -477,6 +477,7 @@ export const jobsRelations = relations(jobs, ({ one, many }) => ({
   productionSteps: many(productionSteps),
   qualityChecks: many(qualityChecks),
   dispatches: many(dispatches),
+  assignedDriver: one(drivers, { fields: [jobs.id], references: [drivers.assignedJobId] }),
 }));
 
 export const jobFilesRelations = relations(jobFiles, ({ one }) => ({
@@ -528,4 +529,29 @@ export const customerUsersRelations = relations(customerUsers, ({ one, many }) =
 
 export const customerSessionsRelations = relations(customerSessions, ({ one }) => ({
   customerUser: one(customerUsers, { fields: [customerSessions.customerUserId], references: [customerUsers.id] }),
+}));
+
+// Delivery Drivers
+export const drivers = pgTable("drivers", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  fullName: varchar("full_name", { length: 255 }).notNull(),
+  phoneNumber: varchar("phone_number", { length: 20 }).notNull().unique(),
+  driverId: varchar("driver_id", { length: 50 }).notNull().unique(),
+  vehicleNumber: varchar("vehicle_number", { length: 50 }).notNull(),
+  pinHash: varchar("pin_hash", { length: 255 }).notNull(),
+  isActive: boolean("is_active").notNull().default(true),
+  isOnline: boolean("is_online").notNull().default(false),
+  assignedJobId: uuid("assigned_job_id").references(() => jobs.id, { onDelete: "set null" }),
+  trackingToken: varchar("tracking_token", { length: 64 }),
+  lastSeen: timestamp("last_seen"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (t) => [
+  index("drivers_driver_id_idx").on(t.driverId),
+  index("drivers_phone_idx").on(t.phoneNumber),
+  index("drivers_tracking_token_idx").on(t.trackingToken),
+]);
+
+export const driversRelations = relations(drivers, ({ one }) => ({
+  assignedJob: one(jobs, { fields: [drivers.assignedJobId], references: [jobs.id] }),
 }));
